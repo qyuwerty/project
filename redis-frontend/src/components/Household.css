@@ -1,0 +1,263 @@
+/* Main container styles */
+.households-container {
+    font-family: 'Nunito', 'Segoe UI', sans-serif;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f0f7ff;
+    border-radius: 5px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+  
+  .households-container h2 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 25px;
+    font-size: 28px;
+    position: relative;
+    padding-bottom: 15px;
+  }
+  
+  .households-container h2:after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 4px;
+    background: linear-gradient(90deg, #95579c, #f1eaea);
+    border-radius: 2px;
+  }
+  
+  /* Household cards */
+  .household-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+  }
+  
+  .household-card {
+    background-color: white;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .household-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  }
+  
+  .household-card h3 {
+    background: linear-gradient(90deg, #9745ba, #52a5ed);
+    color: white;
+    margin: 0;
+    padding: 15px 20px;
+    font-size: 18px;
+    font-weight: 600;
+    border-bottom: 3px solid #ddd;
+  }
+  
+  .household-details {
+    padding: 20px;
+  }
+  
+  .household-details p {
+    margin: 10px 0;
+    color: #555;
+    line-height: 1.5;
+  }
+  
+  .household-details p strong {
+    color: #2c3e50;
+    font-weight: 600;
+  }
+  
+  /* Member list styling */
+  .member-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 15px 0;
+    max-height: 200px;
+    overflow-y: auto;
+    border-radius: 8px;
+    border: 1px solid #e1e8ed;
+  }
+  
+  .member-list li {
+    padding: 10px 15px;
+    border-bottom: 1px solid #e1e8ed;
+    font-size: 14px;
+    transition: background-color 0.2s;
+  }
+  
+  .member-list li:last-child {
+    border-bottom: none;
+  }
+  
+  .member-list li:hover {
+    background-color: #f5f8fa;
+  }
+  
+  .member-list li strong {
+    color: #34495e;
+  }
+  
+  .relationship {
+    display: inline-block;
+    padding: 2px 8px;
+    margin: 0 5px;
+    border-radius: 12px;
+    font-size: 12px;
+    background-color: #e8f4fc;
+    color: #3498db;
+  }
+  
+  .relationship.head {
+    background-color: #d4f1f9;
+    color: #005580;
+    font-weight: 600;
+  }
+  
+  .occupation {
+    color: #7f8c8d;
+    font-style: italic;
+  }
+  
+  .different-address {
+    display: block;
+    margin-top: 3px;
+    font-size: 12px;
+    color: #e74c3c;
+  }
+  
+  .address-note {
+    font-size: 12px;
+    color: #7f8c8d;
+    font-style: italic;
+  }
+  
+  /* Button styling */
+  .edit-button {
+    display: block;
+    width: 50%;
+    margin-top: 15px;
+    padding: 10px 15px;
+    background-color: #9a5db2;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    
+  }
+  
+  .edit-button:hover {
+    background-color: #2980b9;
+  }
+  
+  /* Edit form styling */
+  .household-edit-form {
+    background-color: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.1);
+  }
+  
+  .household-edit-form h3 {
+    color: #2c3e50;
+    margin-top: 0;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #3498db;
+  }
+  
+  .household-edit-form h4 {
+    color: #34495e;
+    margin: 20px 0 10px;
+  }
+  
+  .form-group {
+    margin-bottom: 15px;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #2c3e50;
+    font-weight: 600;
+  }
+  
+  .form-group select,
+  .form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #333;
+    background-color: #f9f9f9;
+  }
+  
+  .form-group select:focus,
+  .form-group input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+  }
+  
+  .button-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  
+  .button-group button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  
+  .button-group button:first-child {
+    background-color: #3498db;
+    color: white;
+  }
+  
+  .button-group button:first-child:hover {
+    background-color: #2980b9;
+  }
+  
+  .button-group button:last-child {
+    background-color: #ecf0f1;
+    color: #7f8c8d;
+  }
+  
+  .button-group button:last-child:hover {
+    background-color: #dde4e6;
+  }
+  
+  /* For the living condition score */
+  .household-details p:nth-child(5) {
+    background-color: #f8f9fa;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border-left: 4px solid #38034b;
+    font-weight: 500;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .household-list {
+      grid-template-columns: 1fr;
+    }
+    
+    .households-container {
+      padding: 10px;
+    }
+  }
