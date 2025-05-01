@@ -3,118 +3,164 @@ const redis = require('redis');
 const cors = require('cors');
 const jwt = require("jsonwebtoken");
 const bodyParser = require('body-parser');
-require('dotenv').config(console.log);
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Create Redis client
+// Create Redis client with more explicit options
 const client = redis.createClient({
-    url: 'redis://@127.0.0.1:6379'
+    url: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
+    socket: {
+        reconnectStrategy: (retries) => {
+            // Exponential backoff with maximum delay of 10 seconds
+            return Math.min(retries * 50, 10000);
+        }
+    }
 });
 
-// Redis connection handling
-client.on('error', (err) => console.error('Redis Client Error:', err));
+// Improved Redis error handling
+client.on('error', (err) => {
+    console.error('Redis Client Error:', err);
+});
+
+client.on('connect', () => {
+    console.log('Connected to Redis server');
+});
+
+client.on('reconnecting', () => {
+    console.log('Reconnecting to Redis server...');
+});
 
 // Connect to Redis before setting up routes
 (async () => {
     try {
         await client.connect();
-        console.log('Connected to Redis');
-
+        console.log('Connected to Redis successfully');
+        
         // CORS middleware - must be before routes
         app.use(cors({
-          origin: 'http://localhost:3000',
-          credentials: true,
-          methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-          allowedHeaders: ['Content-Type', 'Authorization']
+            origin: 'http://localhost:3000',
+            credentials: true,
+            methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+            allowedHeaders: ['Content-Type', 'Authorization']
         }));
         
         // Body parser middleware
-        app.use(bodyParser.json(console.log));
+        app.use(bodyParser.json());
         
-        // Auth routes
+        // Route for checking API status
+        app.get('/api/status', (req, res) => {
+            res.json({ 
+                status: 'online',
+                timestamp: new Date().toISOString(),
+                redis: client.isOpen ? 'connected' : 'disconnected'
+            });
+        });
+        
+        // Auth routes - IMPORTANT: All authentication routes should be behind /api/auth prefix
         const authRoutes = require('./Authentication')(client);
-        app.use('/', authRoutes);
+        app.use('/api/auth', authRoutes);
         
-
-        // RBAC
-        const SECRET_KEY = "your_secret_key";
-
-        const users = {
-            user1: { username: "user1", password: "pass123", role: "admin" },
-            user2: { username: "user2", password: "pass123", role: "user" },
-        };
-
-        // Login endpoint
+        // Legacy routes for backward compatibility - these should be phased out
+        // and redirected to the new endpoints
         app.post("/login", async (req, res) => {
-            const { username, password } = req.body;
-            const user = users[username];
-
-            if (!user || user.password !== password) {
-                return res.status(401).json({ message: "Invalid credentials" });
+            try {
+                // Forward the request to the new login endpoint
+                const { email, password } = req.body;
+                if (!email || !password) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        message: 'Email and password are required' 
+                    });
+                }
+                
+                // Get user data from Redis
+                const user = await client.hGetAll(`user:${email}`);
+                
+                // Check if user exists
+                if (!user || Object.keys(user).length === 0 || !user.password) {
+                    return res.status(401).json({ 
+                        success: false, 
+                        message: 'Invalid email or password' 
+                    });
+                }
+                
+                // Compare passwords using bcrypt
+                const bcrypt = require('bcrypt');
+                const passwordMatch = await bcrypt.compare(password, user.password);
+                if (!passwordMatch) {
+                    return res.status(401).json({ 
+                        success: false, 
+                        message: 'Invalid email or password' 
+                    });
+                }
+                
+                // Generate token
+                const JWT_SECRET = process.env.JWT_SECRET || 'my_secret_key';
+                const token = jwt.sign(
+                    { email, role: user.role || 'user' }, 
+                    JWT_SECRET, 
+                    { expiresIn: '24h' }
+                );
+                
+                // Return user info with token
+                res.json({ 
+                    success: true, 
+                    user: { 
+                        email, 
+                        role: user.role || 'user',
+                        firstName: user.firstName || '',
+                        lastName: user.lastName || ''
+                    }, 
+                    token 
+                });
+            } catch (error) {
+                console.error('Legacy login error:', error);
+                res.status(500).json({ 
+                    success: false, 
+                    message: 'Server error during login',
+                    details: process.env.NODE_ENV === 'development' ? error.message : undefined
+                });
             }
-
-            // Generate token & store role in Redis
-            const token = jwt.sign({ username, role: user.role }, SECRET_KEY, { expiresIn: "1h" });
-            await client.set(username, user.role);
-
-            res.json({ token, role: user.role });
         });
-
-        // Get user role from Redis
-        app.get("/role/:username", async (req, res) => {
-            const role = await client.get(req.params.username);
-            res.json({ role });
+        
+        app.post("/register", (req, res) => {
+            // Redirect to the new API endpoint
+            res.redirect(307, '/api/auth/register');
         });
-
-      
-
+        
+        // Redis test endpoint - useful for debugging
+        app.get('/api/test-redis', async (req, res) => {
+            try {
+                const pingResult = await client.ping();
+                res.json({
+                    success: true,
+                    pingResult,
+                    timestamp: new Date().toISOString(),
+                    message: 'Redis connection is working properly'
+                });
+            } catch (error) {
+                console.error('Redis test error:', error);
+                res.status(500).json({
+                    success: false,
+                    message: 'Redis connection error',
+                    details: error.message
+                });
+            }
+        });
+        
         // --------------------      CRUD Operations - Resident DATA ------------------------------------------ //
        
 
 
         app.post('/residents', async (req, res) => {
           const { 
-            id, 
-            firstname, 
-            lastname, 
-            birthday, 
-            gender, 
-            age, 
-            address, 
-            email, 
-            pnumber, 
-            civilStatus, 
-            religion, 
-            houseNumber, 
-            purok, 
-            yearsOfResidency, 
-            employmentStatus, 
-            occupation, 
-            monthlyIncomeRange, 
-            educationLevel 
+            id, firstname, lastname, birthday, gender, age, address, email, pnumber, civilStatus, religion, houseNumber, purok, yearsOfResidency, employmentStatus, occupation, monthlyIncomeRange, educationLevel 
           } = req.body;
         
           // Validate input fields
-          if (!id || 
-          !firstname || 
-          !lastname || 
-          !birthday || 
-          !gender || 
-          !age || 
-          !address || 
-          !email || 
-          !pnumber || 
-          !civilStatus || 
-          !religion || 
-          !houseNumber || 
-          !purok || 
-          !yearsOfResidency || 
-          !employmentStatus || 
-          !occupation || 
-          !monthlyIncomeRange || 
-          !educationLevel
+          if (!id || !firstname || !lastname || !birthday || !gender || !age || !address || !email || !pnumber || !civilStatus || !religion || !houseNumber || !purok || !yearsOfResidency || !employmentStatus || !occupation || !monthlyIncomeRange || !educationLevel
         ) {
             return res.status(400).json({ message: 'All fields are required' });
           }
@@ -367,13 +413,14 @@ app.delete('/residents/:id/medical-record', async (req, res) => {
 
 
 
-    // Start server
-    app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-  });
-
-} catch (err) {
-  console.error('Failed to connect to Redis:', err);
-  process.exit(1);
-}
+// Start server
+        app.listen(PORT, () => {
+            console.log(`Server running on http://localhost:${PORT}`);
+        });
+        
+    } catch (err) {
+        console.error('Failed to connect to Redis:', err);
+        console.error('Make sure Redis server is running and the connection URL is correct');
+        process.exit(1);
+    }
 })();
