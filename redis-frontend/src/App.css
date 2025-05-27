@@ -1541,10 +1541,13 @@ textarea:focus {
   }
   
   .app-wrapper {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
+    /* Remove any solid background-color if present */
+    /* background-color: #f0f0f0; */
+    min-height: 100vh;
+    /* Optionally add a subtle overlay for readability */
+    position: relative;
   }
+  
   .HeaderContainer {
     width: 100%;
     background-color:rgb(131, 69, 185) ;
@@ -1587,6 +1590,10 @@ textarea:focus {
   
   
   .main-content-wrapper {
+    /* Remove background if present to let the image show through */
+    /* background: none; */
+    /* Optionally add a semi-transparent overlay for content readability */
+    background: rgba(255,255,255,0.85);
     display: flex;
     flex: 1;
     overflow: hidden;

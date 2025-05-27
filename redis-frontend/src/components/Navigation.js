@@ -75,14 +75,13 @@ const Navigation = ({ hasPermission, setActiveView, handleLogout }) => {
                   </button>
                 )}
 
-                {hasPermission('view_user') && (
-                  <button 
-                    onClick={() => handleNavClick('UserTable')}
-                    className="nav-button"
-                  >
-                    User Management
-                  </button>
-                )}
+{hasPermission('scan_qr') && (
+    <button 
+        onClick={() => setActiveView('scan_qr')} // Ensure this sets the correct view
+        className="nav-button"
+    >  Scan QR Code
+    </button>
+)}
                 
                 {hasPermission('view_visualization') && (
                   <button 

@@ -23,20 +23,32 @@ const ReportsAnalytics = ({
   colors_age = ['#51a2d7', '#f39c12', '#e74c3c', '#2ecc71'],
   colors = ['#51a2d7', '#3790c0', '#2d7bad', '#206b9a', '#155987', '#9b59b6', '#2ecc71', '#e74c3c', '#f39c12', '#34495e']
 }) => {
+  // Defensive: ensure residents is always an array
+  const residentList = Array.isArray(residents) ? residents : [];
+
   // Calculate gender distribution
-  const genderGroups = residents.reduce((acc, resident) => {
-    acc[resident.gender] = (acc[resident.gender] || 0) + 1;
+  const genderGroups = residentList.reduce((acc, resident) => {
+    // Create the group if it doesn't exist yet
+    if (!acc[resident.gender]) {
+      acc[resident.gender] = {
+        count: 0,
+        members: []
+      };
+    }
+    // Update the count and add the resident to this gender group
+    acc[resident.gender].count += 1;
+    acc[resident.gender].members.push({resident});
     return acc;
   }, {});
 
-  const genderChartData = Object.entries(genderGroups).map(([gender, count], index) => ({
+  const genderChartData = Object.entries(genderGroups).map(([gender, data], index) => ({
     name: gender,
-    value: count,
+    value: data.count,
     color: colors[index % colors.length],
   }));
 
   // Calculate employment status distribution
-  const employmentGroups = residents.reduce((acc, resident) => {
+  const employmentGroups = residentList.reduce((acc, resident) => {
     if (resident.employmentStatus) {
       acc[resident.employmentStatus] = (acc[resident.employmentStatus] || 0) + 1;
     }
@@ -50,7 +62,7 @@ const ReportsAnalytics = ({
   }));
 
   // Calculate education level distribution
-  const educationGroups = residents.reduce((acc, resident) => {
+  const educationGroups = residentList.reduce((acc, resident) => {
     if (resident.educationLevel) {
       acc[resident.educationLevel] = (acc[resident.educationLevel] || 0) + 1;
     }
@@ -64,7 +76,7 @@ const ReportsAnalytics = ({
   }));
 
   // Calculate civil status distribution
-  const civilStatusGroups = residents.reduce((acc, resident) => {
+  const civilStatusGroups = residentList.reduce((acc, resident) => {
     if (resident.civilStatus) {
       acc[resident.civilStatus] = (acc[resident.civilStatus] || 0) + 1;
     }
@@ -78,7 +90,7 @@ const ReportsAnalytics = ({
   }));
 
   // Calculate income distribution
-  const incomeGroups = residents.reduce((acc, resident) => {
+  const incomeGroups = residentList.reduce((acc, resident) => {
     if (resident.monthlyIncomeRange) {
       acc[resident.monthlyIncomeRange] = (acc[resident.monthlyIncomeRange] || 0) + 1;
     }
@@ -97,7 +109,7 @@ const ReportsAnalytics = ({
   });
 
   // Calculate religion distribution
-  const religionGroups = residents.reduce((acc, resident) => {
+  const religionGroups = residentList.reduce((acc, resident) => {
     if (resident.religion) {
       acc[resident.religion] = (acc[resident.religion] || 0) + 1;
     }
@@ -111,7 +123,7 @@ const ReportsAnalytics = ({
   }));
 
   // Calculate years of residency distribution
-  const residencyGroups = residents.reduce((acc, resident) => {
+  const residencyGroups = residentList.reduce((acc, resident) => {
     if (resident.yearsOfResidency) {
       const years = parseInt(resident.yearsOfResidency);
       if (years < 5) acc['Less than 5 years'] = (acc['Less than 5 years'] || 0) + 1;
@@ -139,7 +151,7 @@ const ReportsAnalytics = ({
   });
 
   // Calculate purok distribution
-  const purokGroups = residents.reduce((acc, resident) => {
+  const purokGroups = residentList.reduce((acc, resident) => {
     if (resident.purok) {
       acc[resident.purok] = (acc[resident.purok] || 0) + 1;
     }
@@ -156,7 +168,7 @@ const ReportsAnalytics = ({
   const avgAgeByGender = {};
   const countByGender = {};
   
-  residents.forEach(resident => {
+  residentList.forEach(resident => {
     if (resident.gender && resident.age) {
       const age = parseInt(resident.age);
       if (!isNaN(age)) {
@@ -192,7 +204,7 @@ const ReportsAnalytics = ({
           <div className="stat-card">
             <h4>Gender Ratio</h4>
             <p>
-              {`${genderGroups['Male'] || 0} : ${genderGroups['Female'] || 0}`}
+              {`${genderGroups['Male']?.count || 0} : ${genderGroups['Female']?.count || 0}`}
             </p>
           </div>
           <div className="stat-card">

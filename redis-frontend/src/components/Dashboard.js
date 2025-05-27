@@ -5,14 +5,17 @@ const Dashboard = ({
   residents = [], 
   logs = [] 
 }) => {
+  // Ensure residents is always an array
+  const residentList = Array.isArray(residents) ? residents : [];
+
   // Calculate gender distribution
-  const genderGroups = residents.reduce((acc, resident) => {
+  const genderGroups = residentList.reduce((acc, resident) => {
     acc[resident.gender] = (acc[resident.gender] || 0) + 1;
     return acc;
   }, {});
 
   // Calculate employment status distribution
-  const employmentGroups = residents.reduce((acc, resident) => {
+  const employmentGroups = residentList.reduce((acc, resident) => {
     if (resident.employmentStatus) {
       acc[resident.employmentStatus] = (acc[resident.employmentStatus] || 0) + 1;
     }
@@ -20,7 +23,7 @@ const Dashboard = ({
   }, {});
 
   // Calculate education level distribution
-  const educationGroups = residents.reduce((acc, resident) => {
+  const educationGroups = residentList.reduce((acc, resident) => {
     if (resident.educationLevel) {
       acc[resident.educationLevel] = (acc[resident.educationLevel] || 0) + 1;
     }
@@ -28,7 +31,7 @@ const Dashboard = ({
   }, {});
 
   // Calculate civil status distribution
-  const civilStatusGroups = residents.reduce((acc, resident) => {
+  const civilStatusGroups = residentList.reduce((acc, resident) => {
     if (resident.civilStatus) {
       acc[resident.civilStatus] = (acc[resident.civilStatus] || 0) + 1;
     }
@@ -37,12 +40,12 @@ const Dashboard = ({
 
   // Calculate average age
   const calculateAverageAge = () => {
-    if (!residents || residents.length === 0) return 0;
-    const totalAge = residents.reduce((sum, resident) => {
+    if (!residentList.length) return 0;
+    const totalAge = residentList.reduce((sum, resident) => {
       const age = parseInt(resident?.age, 10) || 0;
       return sum + age;
     }, 0);
-    return Math.round(totalAge / residents.length);
+    return Math.round(totalAge / residentList.length);
   };
 
   return (
@@ -52,7 +55,7 @@ const Dashboard = ({
       <div className="dashboard-cards">
         <div className="dash-card">
           <h3>Total Records of Residents</h3>
-          <p>{residents?.length || 0}</p>
+          <p>{residentList.length}</p>
         </div>
         <div className="dash-card">
           <h3>Average Age of Residents</h3>

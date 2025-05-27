@@ -156,11 +156,11 @@ client.on('reconnecting', () => {
 
         app.post('/residents', async (req, res) => {
           const { 
-            id, firstname, lastname, birthday, gender, age, address, email, pnumber, civilStatus, religion, houseNumber, purok, yearsOfResidency, employmentStatus, occupation, monthlyIncomeRange, educationLevel 
+            id, firstname, lastname, birthday, gender, age, address, email, phoneNumber, civilStatus, religion, houseNumber, purok, yearsOfResidency, employmentStatus, occupation, monthlyIncomeRange, educationLevel 
           } = req.body;
         
           // Validate input fields
-          if (!id || !firstname || !lastname || !birthday || !gender || !age || !address || !email || !pnumber || !civilStatus || !religion || !houseNumber || !purok || !yearsOfResidency || !employmentStatus || !occupation || !monthlyIncomeRange || !educationLevel
+          if (!id || !firstname || !lastname || !birthday || !gender || !age || !address || !email || !phoneNumber || !civilStatus || !religion || !houseNumber || !purok || !yearsOfResidency || !employmentStatus || !occupation || !monthlyIncomeRange || !educationLevel
         ) {
             return res.status(400).json({ message: 'All fields are required' });
           }
@@ -175,7 +175,7 @@ client.on('reconnecting', () => {
               age, 
               address, 
               email, 
-              pnumber, 
+              phoneNumber, 
               civilStatus, 
               religion, 
               houseNumber, 
@@ -195,7 +195,7 @@ client.on('reconnecting', () => {
             await client.hSet(`resident:${id}`, 'age', residentData.age);
             await client.hSet(`resident:${id}`, 'address', residentData.address);
             await client.hSet(`resident:${id}`, 'email', residentData.email);
-            await client.hSet(`resident:${id}`, 'pnumber', residentData.pnumber);
+            await client.hSet(`resident:${id}`, 'phoneNumber', residentData.phoneNumber);
             await client.hSet(`resident:${id}`, 'civilStatus', residentData.civilStatus);
             await client.hSet(`resident:${id}`, 'religion', residentData.religion);
             await client.hSet(`resident:${id}`, 'houseNumber', residentData.houseNumber);
@@ -237,7 +237,7 @@ app.put('/residents/:id', async (req, res) => {
     age, 
     address, 
     email, 
-    pnumber, 
+    phoneNumber, 
     civilStatus, 
     religion, 
     houseNumber, 
@@ -251,7 +251,7 @@ app.put('/residents/:id', async (req, res) => {
 
   if (
     !firstname && !lastname && !birthday && !gender && !age && !address && 
-    !email && !pnumber && !civilStatus && !religion && !houseNumber && 
+    !email && !phoneNumber && !civilStatus && !religion && !houseNumber && 
     !purok && !yearsOfResidency && !employmentStatus && !occupation && 
     !monthlyIncomeRange && !educationLevel
   ) {
@@ -272,7 +272,7 @@ app.put('/residents/:id', async (req, res) => {
     if (age) await client.hSet(`resident:${id}`, 'age', age);
     if (address) await client.hSet(`resident:${id}`, 'address', address);
     if (email) await client.hSet(`resident:${id}`, 'email', email);
-    if (pnumber) await client.hSet(`resident:${id}`, 'pnumber', pnumber);
+    if (phoneNumber) await client.hSet(`resident:${id}`, 'phoneNumber', phoneNumber);
     if (civilStatus) await client.hSet(`resident:${id}`, 'civilStatus', civilStatus);
     if (religion) await client.hSet(`resident:${id}`, 'religion', religion);
     if (houseNumber) await client.hSet(`resident:${id}`, 'houseNumber', houseNumber);

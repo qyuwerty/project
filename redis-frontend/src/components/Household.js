@@ -3,6 +3,8 @@ import './Household.css';
 import {MapPinHouse } from 'lucide-react';
 
 const Household = ({ residents = [] }) => {
+  // Defensive: ensure residents is always an array
+  const residentList = Array.isArray(residents) ? residents : [];
   const [households, setHouseholds] = useState([]);
   const [editingHousehold, setEditingHousehold] = useState(null);
 
@@ -12,7 +14,7 @@ const Household = ({ residents = [] }) => {
     const groupByHousehold = () => {
       const householdMap = {};
       
-      residents.forEach(resident => {
+      residentList.forEach(resident => {
         // Use only house number as the key for each household
         const householdKey = `${resident.houseNumber}`;
         
@@ -20,11 +22,8 @@ const Household = ({ residents = [] }) => {
           householdMap[householdKey] = {
             id: householdKey,
             houseNumber: resident.houseNumber,
-            // Default purok from first resident, can be updated later
             purok: resident.purok,
-            // Collect all addresses for review
             addresses: [resident.address],
-            // Default primary address
             primaryAddress: resident.address,
             members: [],
             headOfFamilyId: null,
@@ -33,11 +32,9 @@ const Household = ({ residents = [] }) => {
             livingConditionScore: 0
           };
         } else if (!householdMap[householdKey].addresses.includes(resident.address)) {
-          // Add unique addresses to the list
           householdMap[householdKey].addresses.push(resident.address);
         }
         
-        // Add resident to the household
         householdMap[householdKey].members.push({
           ...resident,
           id: `${resident.firstname}-${resident.lastname}-${resident.birthday}`
@@ -88,7 +85,7 @@ const Household = ({ residents = [] }) => {
     };
     
     setHouseholds(groupByHousehold());
-  }, [residents]);
+  }, [residentList]);
 
   // Calculate total household income
   const calculateTotalIncome = (members) => {

@@ -6,9 +6,8 @@ import "react-toastify/dist/ReactToastify.css";
 
 const API_URL = "http://localhost:5000/login";
 const REGISTER_URL = "http://localhost:5000/register";
-// For backward compatibility, keep the legacy URLs as fallbacks
-const LEGACY_LOGIN_URL = "http://localhost:5000/api/auth/login";
-const LEGACY_REGISTER_URL = "http://localhost:5000/api/auth/register";
+
+
 
 const LoginPanel = ({ onLogin }) => {
     const [formData, setFormData] = useState({ 
@@ -73,114 +72,115 @@ const LoginPanel = ({ onLogin }) => {
     };
 
     return (
-
-        
-       <div className="login-container">
-    
-    {/* Background Overlay for Opacity Effect */}
-    <div 
-        style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            backgroundImage: `url("/brgy-back.jpg")`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            opacity: 1,
-            zIndex: -1,
-            filter: "brightness(0.9)"
-        }}
-    ></div>
-
-    <ToastContainer />
-    <form onSubmit={handleSubmit} className={`login-form ${isAnimating ? 'fade-out' : 'fade-in'}`}>
-        {/* tab Button UI */}
-        <div className="form-tab">
-            <button 
-                type="button"
-                className={`tab-btn ${isLogin ? 'active' : ''}`} 
-                onClick={() => tabForm(true)}
-                disabled={isAnimating}
-            >
-                Login
-            </button>
-            <button 
-                type="button"
-                className={`tab-btn ${!isLogin ? 'active' : ''}`} 
-                onClick={() => tabForm(false)}
-                disabled={isAnimating}
-            >
-                Register
-            </button>
-        </div>
-        
-        <div className="form-fields-container">
-            {/* First Name field - only shown when registering */}
-            {!isLogin && (
-                <div className="form-group sliding-field">
-                    <label htmlFor="firstName">First Name:</label>
-                    <input
-                        type="text"
-                        id="firstName"
-                        value={formData.firstName}
-                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                        required
-                        placeholder="Enter your first name"
-                    />
-                </div>
-            )}
-            
-            {/* Last Name field - only shown when registering */}
-            {!isLogin && (
-                <div className="form-group sliding-field">
-                    <label htmlFor="lastName">Last Name:</label>
-                    <input
-                        type="text"
-                        id="lastName"
-                        value={formData.lastName}
-                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                        required
-                        placeholder="Enter your last name"
-                    />
-                </div>
-            )}
-            
-            <div className="form-group">
-                <label htmlFor="email">Email:</label>
-                <input
-                    type="email"
-                    id="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    required
-                    placeholder="Enter your email"
-                />
-            </div>
-
-            <div className="form-group">
-                <label htmlFor="password">Password:</label>
-                <input
-                    type="password"
-                    id="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    required
-                    placeholder="Enter your password"
-                />
-            </div>
+    <div className="login-bg-wrapper">
+        {/* Header with Logo and Title */}
+        <div className="login-header">
+            <img
+                src="/images/brgy_bonbonon.jpg"
+                alt="Brgy. Bonbonon Logo"
+                className="login-header-logo"
+            />
+            <span className="login-header-title">
+                Brgy. Bonbonon Profiling System
+            </span>
         </div>
 
-        {error && <div className="error-message">{error}</div>}
-        
-        <button type="submit" className="submit-button">
-            {isLogin ? "Login" : "Register"}
-        </button>
-    </form>
-</div>
+        <div
+            className="login-container"
+            style={{
+                backgroundImage: "url('/images/dodiongan-falls.jpg')",
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                position: "relative"
+            }}
+        >
+            <ToastContainer />
+            <form onSubmit={handleSubmit} className={`login-form ${isAnimating ? 'fade-out' : 'fade-in'}`}>
+                {/* tab Button UI */}
+                <div className="form-tab">
+                    <button 
+                        type="button"
+                        className={`tab-btn ${isLogin ? 'active' : ''}`} 
+                        onClick={() => tabForm(true)}
+                        disabled={isAnimating}
+                    >
+                        Login
+                    </button>
+                    <button 
+                        type="button"
+                        className={`tab-btn ${!isLogin ? 'active' : ''}`} 
+                        onClick={() => tabForm(false)}
+                        disabled={isAnimating}
+                    >
+                        Register
+                    </button>
+                </div>
+                
+                <div className="form-fields-container">
+                    {/* First Name field - only shown when registering */}
+                    {!isLogin && (
+                        <div className="form-group sliding-field">
+                            <label htmlFor="firstName">First Name:</label>
+                            <input
+                                type="text"
+                                id="firstName"
+                                value={formData.firstName}
+                                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                                required
+                                placeholder="Enter your first name"
+                            />
+                        </div>
+                    )}
+                    
+                    {/* Last Name field - only shown when registering */}
+                    {!isLogin && (
+                        <div className="form-group sliding-field">
+                            <label htmlFor="lastName">Last Name:</label>
+                            <input
+                                type="text"
+                                id="lastName"
+                                value={formData.lastName}
+                                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                                required
+                                placeholder="Enter your last name"
+                            />
+                        </div>
+                    )}
+                    
+                    <div className="form-group">
+                        <label htmlFor="email">Email:</label>
+                        <input
+                            type="email"
+                            id="email"
+                            value={formData.email}
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            required
+                            placeholder="Enter your email"
+                        />
+                    </div>
 
-    );
+                    <div className="form-group">
+                        <label htmlFor="password">Password:</label>
+                        <input
+                            type="password"
+                            id="password"
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            required
+                            placeholder="Enter your password"
+                        />
+                    </div>
+                </div>
+
+                {error && <div className="error-message">{error}</div>}
+                
+                <button type="submit" className="submit-button">
+                    {isLogin ? "Login" : "Register"}
+                </button>
+            </form>
+        </div>
+    </div>
+);
 };
 
 export default LoginPanel;

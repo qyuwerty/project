@@ -6,40 +6,52 @@ import './App.css';
 import Papa from 'papaparse';
 import { BarChart, Bar, PieChart, Pie, Cell, Tooltip, XAxis, YAxis, Legend, ResponsiveContainer,LabelList,Label } from 'recharts';
 import LoginPanel from './components/LoginPanel.js';
+import { QRCodeSVG } from 'qrcode.react';
+import { useNavigate } from 'react-router-dom';
 import Navigation from './components/Navigation.js';
 import UserList from './components/UserList.js';
 import Dashboard from './components/Dashboard.js'
 import ResidentRecords from './components/ResidentRecords.js'
 import ReportsAnalytics from './components/ReportsAnalytics.js'
 import Household from './components/Household.js'
+import QRCodeGenerator from './components/QRCodeGenerator.js';
+import ExportData from './components/exportData.js';
 import { LogOut, Menu, ArrowLeftToLine, CircleUserRound,PlusCircle, ChevronDown, ChevronUp, FolderKanban,
-        Mail, Phone,LayoutDashboard,LibraryBig,Users,CalendarRange, ChartColumnBig,House} from 'lucide-react';
+        Mail, Phone,LayoutDashboard,LibraryBig,Users,CalendarRange, ChartColumnBig,House,
+        Scan} from 'lucide-react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 const API_URL = 'http://localhost:5000/residents';
 
 
 // Visualization Component
 
-const colors_age = ['#51a2d7', '#f39c12', '#e74c3c', '#2ecc71']; 
-
 const Visualization = ({ residents }) => {
+  // Defensive: ensure residents is always an array
+  const residentList = Array.isArray(residents) ? residents : [];
+
   const colors = ['#51a2d7', '#3790c0', '#2d7bad', '#206b9a', '#155987'];
 
-
-  const genderGroups = residents.reduce((acc, resident) => {
-    acc[resident.gender] = (acc[resident.gender] || 0) + 1;
+  const genderGroups = residentList.reduce((acc, resident) => {
+    if (!acc[resident.gender]) {
+      acc[resident.gender] = {
+        count: 0,
+        members: []
+      };
+    }
+    acc[resident.gender].count += 1;
+    acc[resident.gender].members.push(resident);
     return acc;
   }, {});
 
-
-  const genderData = Object.entries(genderGroups).map(([gender, count], index) => ({
+  const genderData = Object.entries(genderGroups).map(([gender, data], index) => ({
     name: gender,
-    value: count,
+    value: data.count,
     color: colors[index % colors.length],
   }));
+
+  // ...existing code for rendering...
 }
-
-
 
 //Main Function App (chrz naa diay dre tanan)
 function App() {
@@ -52,7 +64,7 @@ function App() {
     age: '', 
     address: '', 
     email: '', 
-    pnumber: '', 
+    phoneNumber: '', 
     civilStatus: '', 
     religion: '', 
     houseNumber: '', 
@@ -66,6 +78,7 @@ function App() {
   
   const [showViewMoreModal, setShowViewMoreModal] = useState(false); //For View more Modal
   const [residents, setresidents] = useState([]);//residents data
+  const [resident, setresident] = useState([]);//single resident data
   const [isEditing, setIsEditing] = useState(false);//Editing the add/update modal
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);//Add/Update Modal Show/close
   const [showMedicalRecord, setShowMedicalRecord] = useState(false);
@@ -225,7 +238,7 @@ console.log("Has 'account' permission:", hasPermission('account'));
     setShowLogoutModal(false);
   };
 
-  const handleChange = (e) => {
+  const handleChange = (e) => { 
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -254,20 +267,22 @@ useEffect(() => {
   };
 }, []);
 
+
 // Render content based on active view
 const renderContent = () => {
+  const residentList = Array.isArray(residents) ? residents : [];
   switch(activeView) {
       case 'dashboard':
         return (
           <Dashboard 
-            residents={residents}
+            residents={residentList}
             logs={logs}
           />
         );
       case 'table':
         return (
           <ResidentRecords 
-            residents={residents}
+            residents={residentList}
             filteredresidents={filteredresidents}
             currentPage={currentPage}
             itemsPerPage={itemsPerPage}
@@ -286,22 +301,24 @@ const renderContent = () => {
             confirmDelete={confirmDelete}
           />);
       case 'UserTable':
-          return <UserList />;   
+          return <UserList />;
       case 'household':
-          return <Household residents={residents} />;    
+          return <Household residents={residentList} />;    
       case 'visualization':
         return (
           <ReportsAnalytics 
-            residents={residents}
+            residents={residentList}
             ageData={ageData}
             genderData={genderData}
             colors_age={['#51a2d7', '#f39c12', '#e74c3c', '#2ecc71']}
             colors={['#51a2d7', '#3790c0', '#2d7bad', '#206b9a', '#155987']}
           />
         );
+      case 'generate_qr':
+        return <QRCodeGenerator residents={residentList} />;
       default:
         return <Dashboard 
-        residents={residents}
+        residents={residentList}
         logs={logs}
       />;
   }
@@ -360,13 +377,14 @@ useEffect(() => {
   
   
   
-
+//Checks resident existence
   const checkresidentExists = async (residentId) => {
     try {
       console.log('Checking resident with ID:', residentId);
       const response = await fetch(`http://localhost:5000/residents/${residentId}`);
       return response.ok;
     } catch (error) {
+      console.log('Error checking resident existence:', error);
       return false;
     }
   };
@@ -478,12 +496,26 @@ const handleInputChange = (e) => {
   }));
 };
 
-  //resident API CALLS
+const fetchresident = async (residentId) => {
+  try {
+    const response = await axios.get(`http://localhost:5000/resident/${residentId}`);
+    setresident(response.data);
+    console.log('Fetched resident:', response.data);
+  } catch (error) {
+    setresidentToDeleteId([]);
+    console.error('Error fetching resident:', error);
+    toast.error('Failed to fetch resident data');
+  }
+};
+
+  //resident API CALLS ?
   const fetchresidents = async () => {
     try {
       const response = await axios.get(API_URL);
       setresidents(response.data);
+      console.log('Fetched residents:', response.data, Array.isArray(response.data));
     } catch (error) {
+      setresidents([]);
       console.error('Error fetching residents:', error);
       toast.error('Failed to fetch residents data');
     }
@@ -491,119 +523,119 @@ const handleInputChange = (e) => {
 
 //-------------
 
+//-- Search Function -- 
+const handleSearch = () => {
+  // Accessing residents from state or props, not trying to access a variable before declaration
+  const residentsData = Array.isArray(residents) ? residents : [];
+  
+  const filtered = residentsData.filter(resident =>
+    (`${resident.firstname} ${resident.lastname}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (resident.id && resident.id.toLowerCase().includes(searchTerm.toLowerCase())))
+  );
 
-  //-- Search Function -- 
-  const handleSearch = () => {
-    const filtered = residents.filter(resident =>
-      `${resident.firstname} ${resident.lastname}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      resident.id.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+  setFilteredresidents(filtered);
+  setCurrentPage(1);
 
-    setFilteredresidents(filtered);
-    setCurrentPage(1);
-
-    if (searchTerm.trim() === "") {
-      toast.error("Please enter a search term");
-    } else if (filtered.length > 0) {
-      toast.success(`${filtered.length} result(s) found for "${searchTerm}"`, {
-        style: { backgroundColor: "#fff", color: "#000" },
-        progressStyle: { backgroundColor: "#007bff" }
-      });
-      
-    } else {
-      toast.error("resident not found");
-    }
-  };
+  if (searchTerm.trim() === "") {
+    toast.error("Please enter a search term");
+  } else if (filtered.length > 0) {
+    toast.success(`${filtered.length} result(s) found for "${searchTerm}"`, {
+      style: { backgroundColor: "#fff", color: "#000" },
+      progressStyle: { backgroundColor: "#007bff" }
+    });
+    
+  } else {
+    toast.error("resident not found");
+  }
+};
 
  //-- ADD resident Record (Basic Details) via CSV -- 
   const handleCSVUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-  
-    Papa.parse(file, {
-      header: true,
-      complete: async (result) => {
-        const csvData = result.data
-          .filter(row => Object.values(row).some(value => value && String(value).trim()))
-          .map(resident => ({
-            id: resident.id?.toString().trim(),
-            firstname: resident.firstname?.toString().trim(),
-            lastname: resident.lastname?.toString().trim(),
-            birthday: resident.birthday?.toString().trim(),
-            gender: resident.gender?.toString().trim(),
-            age: resident.age ? parseInt(resident.age.toString().trim(), 10) : null,
-            address: resident.address?.toString().trim(),
-            email: resident.email?.toString().trim(),
-            pnumber: resident.pnumber?.toString().trim(),
-            civilStatus: resident.civilStatus?.toString().trim(),
-            religion: resident.religion?.toString().trim(),
-            houseNumber: resident.houseNumber?.toString().trim(),
-            purok: resident.purok?.toString().trim(),
-            yearsOfResidency: resident.yearsOfResidency ? parseInt(resident.yearsOfResidency.toString().trim(), 10) : null,
-            employmentStatus: resident.employmentStatus?.toString().trim(),
-            occupation: resident.occupation?.toString().trim(),
-            monthlyIncomeRange: resident.monthlyIncomeRange?.toString().trim(),
-            educationLevel: resident.educationLevel?.toString().trim(),
-          }));
-          
-  
-          const invalidRows = csvData.filter(resident => {
-            return !resident.id || 
-                   !resident.firstname || 
-                   !resident.lastname || 
-                   !resident.birthday || 
-                   !resident.gender || 
-                   resident.age === null || 
-                   !resident.address || 
-                   !resident.email || 
-                   !resident.pnumber || 
-                   !resident.civilStatus || 
-                   !resident.religion || 
-                   !resident.houseNumber || 
-                   !resident.purok || 
-                   resident.yearsOfResidency === null || 
-                   !resident.employmentStatus || 
-                   !resident.occupation || 
-                   !resident.monthlyIncomeRange || 
-                   !resident.educationLevel;
-          });
-          
-  
-        if (invalidRows.length > 0) {
-          toast.error(`CSV contains ${invalidRows.length} row(s) with missing required fields.`);
-          return;
-        }
-  
-        if (csvData.length === 0) {
-          toast.error('No valid data found in CSV');
-          return;
-        }
-  
-        try {
-          for (const resident of csvData) {
-            await axios.post(API_URL, resident);
-          }
-          toast.success('CSV uploaded successfully!');
-          fetchresidents();
-          addLog(`Uploaded residents data ${csvData.length} row(s)`);
-        } catch (error) {
-          const errorMessage = error.response?.data?.message || error.message;
-          toast.error(`Error uploading CSV: ${errorMessage}`);
-        }
-      },
-      error: (error) => {
-        console.error('Papa Parse error:', error);
-        toast.error('Error parsing CSV file');
+  const file = e.target.files[0];
+  if (!file) return;
+
+  Papa.parse(file, {
+    header: true,
+    complete: async (result) => {
+      const csvData = result.data
+        .filter(row => Object.values(row).some(value => value && String(value).trim()))
+        .map(resident => ({
+          id: resident.id?.toString().trim(),
+          firstname: resident.firstname?.toString().trim(),
+          lastname: resident.lastname?.toString().trim(),
+          birthday: resident.birthday?.toString().trim(),
+          gender: resident.gender?.toString().trim(),
+          age: resident.age ? parseInt(resident.age.toString().trim(), 10) : null,
+          address: resident.address?.toString().trim(),
+          email: resident.email?.toString().trim(),
+          phoneNumber: resident.phoneNumber?.toString().trim(),
+          civilStatus: resident.civilStatus?.toString().trim(),
+          religion: resident.religion?.toString().trim(),
+          houseNumber: resident.houseNumber?.toString().trim(),
+          purok: resident.purok?.toString().trim(),
+          yearsOfResidency: resident.yearsOfResidency ? parseInt(resident.yearsOfResidency.toString().trim(), 10) : null,
+          employmentStatus: resident.employmentStatus?.toString().trim(),
+          occupation: resident.occupation?.toString().trim(),
+          monthlyIncomeRange: resident.monthlyIncomeRange?.toString().trim(),
+          educationLevel: resident.educationLevel?.toString().trim(),
+        }));
+
+      const invalidRows = csvData.filter(resident => {
+        return !resident.id ||
+               !resident.firstname ||
+               !resident.lastname ||
+               !resident.birthday ||
+               !resident.gender ||
+               resident.age === null ||
+               !resident.address ||
+               !resident.email ||
+               !resident.phoneNumber ||
+               !resident.civilStatus ||
+               !resident.religion ||
+               !resident.houseNumber ||
+               !resident.purok ||
+               resident.yearsOfResidency === null ||
+               !resident.employmentStatus ||
+               !resident.occupation ||
+               !resident.monthlyIncomeRange ||
+               !resident.educationLevel;
+      });
+
+      if (invalidRows.length > 0) {
+        toast.error(`CSV contains ${invalidRows.length} row(s) with missing required fields.`);
+        return;
       }
-    });
-  };
+
+      if (csvData.length === 0) {
+        toast.error('No valid data found in CSV');
+        return;
+      }
+
+      try {
+        // Fixed endpoint to use /residents for bulk upload
+        await axios.post('http://localhost:5000/residents', csvData);
+        toast.success('CSV uploaded successfully!');
+        fetchresidents();
+        addLog(`Uploaded residents data ${csvData.length} row(s)`);
+      } catch (error) {
+        const errorMessage = error.response?.data?.message || error.message;
+        toast.error(`Error uploading CSV: ${errorMessage}`);
+      }
+    },
+    error: (error) => {
+      console.error('Papa Parse error:', error);
+      toast.error('Error parsing CSV file');
+    }
+  });
+};
+
 
   //-- ADD resident Record (Basic Details) Manually  -- 
   const handleAddSubmit = async (e) => {
     e.preventDefault();
     try {
         console.log('Form data being sent:', formData);
-        const response = await axios.post(API_URL, formData);
+        const response = await axios.post('http://localhost:5000/resident', formData);
         console.log('Response:', response);
         toast.success('resident added successfully!');
         fetchresidents();
@@ -620,7 +652,7 @@ const handleInputChange = (e) => {
           age: '', 
           address: '', 
           email: '', 
-          pnumber: '', 
+          phoneNumber: '', 
           civilStatus: '', 
           religion: '', 
           houseNumber: '', 
@@ -657,7 +689,7 @@ const handleInputChange = (e) => {
       const residentToDelete = residents.find(resident => resident.id === residentToDeleteId);
       const residentName = residentToDelete ? `${residentToDelete.firstname} ${residentToDelete.lastname}` : 'Unknown';
 
-      await axios.delete(`${API_URL}/${residentToDeleteId}`);
+      await axios.delete(`http://localhost:5000/resident/${residentToDeleteId}`);
       
       toast.success('resident deleted!');
       fetchresidents();
@@ -683,10 +715,11 @@ const handleInputChange = (e) => {
     setShowViewMoreModal(true);
   };
 
+  //UPDATE resident Record
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`${API_URL}/${formData.id}`, formData);
+      await axios.put(`http://localhost:5000/resident/${formData.id}`, formData);
       toast.success('resident updated successfully!');
       fetchresidents();
       addLog(`Updated resident: ${formData.firstname} ${formData.lastname}`);
@@ -699,7 +732,7 @@ const handleInputChange = (e) => {
         age: '', 
         address: '', 
         email: '', 
-        pnumber: '', 
+        phoneNumber: '', 
         civilStatus: '', 
         religion: '', 
         houseNumber: '', 
@@ -729,7 +762,7 @@ const handleInputChange = (e) => {
       age: '', 
       address: '', 
       email: '', 
-      pnumber: '', 
+      phoneNumber: '', 
       civilStatus: '', 
       religion: '', 
       houseNumber: '', 
@@ -752,19 +785,45 @@ const handleInputChange = (e) => {
   };
 
   // Data processing for visualizations
-  const genderGroups = residents.reduce((acc, resident) => {
-    acc[resident.gender] = (acc[resident.gender] || 0) + 1;
+  const residentList = Array.isArray(residents) ? residents : [];
+  const genderGroups = residentList.reduce((acc, resident) => {
+  // Create the group if it doesn't exist yet
+  if (!acc[resident.gender]) {
+    acc[resident.gender] = {
+      count: 0,
+      members: []
+    };
+  }
+  
+  // Update the count and add the resident to this gender group
+  acc[resident.gender].count += 1;
+  acc[resident.gender].members.push(resident);
+  
+  return acc;
+}, {});
+
+  const genderData = Object.entries(genderGroups).map(([gender, data]) => ({
+    name: gender,
+    value: data.count
+  }));
+
+  const ageDistribution = residentList.reduce((acc, resident) => {
+    const age = parseInt(resident.age, 10) || 0;
+    const ageGroup = `${Math.floor(age / 5) * 5}-${Math.floor(age / 5) * 5 + 4}`;
+    acc[ageGroup] = (acc[ageGroup] || 0) + 1;
     return acc;
   }, {});
 
-  const genderData = Object.entries(genderGroups).map(([gender, count]) => ({
-    name: gender,
-    value: count
-  }));
+  const ageData = Object.entries(ageDistribution)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => parseInt(a.name) - parseInt(b.name));
+
+  const genderList = [...new Set(residentList.map(resident => resident.gender))];
 
   if (loading) {
     return <div className="loading-container">Loading...</div>;
   }
+  
 
   if (!isAuthenticated) {
     return <LoginPanel onLogin={handleLogin} />;
@@ -772,21 +831,7 @@ const handleInputChange = (e) => {
 
   }
 
-  const colors_age = ['#51a2d7', '#f39c12', '#e74c3c', '#2ecc71'];
-
  // const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
-
-const ageDistribution = residents.reduce((acc, resident) => {
-  const ageGroup = `${Math.floor(resident.age / 5) * 5}-${Math.floor(resident.age / 5) * 5 + 4}`;
-  acc[ageGroup] = (acc[ageGroup] || 0) + 1;
-  return acc;
-}, {});
-
-const ageData = Object.entries(ageDistribution)
-  .map(([name, value]) => ({ name, value }))
-  .sort((a, b) => parseInt(a.name) - parseInt(b.name));
-
-  const genderList = [...new Set(residents.map(resident => resident.gender))];
 
 
 
@@ -805,704 +850,692 @@ const ageData = Object.entries(ageDistribution)
 
 
 return (
-  <>
-    <div className={`app-wrapper ${isMenuOpen ? 'menu-open' : ''}`}>
-            <div className="HeaderContainer">
-          <button className='account-btns' onClick={toggleModal}>
-        <CircleUserRound size={28} />
-      </button>
+  <Router>
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <>
+            <div
+              className={`app-wrapper ${isMenuOpen ? 'menu-open' : ''}`}
+              style={{
+                backgroundImage: "url('/images/dodiongan-falls.jpg')",
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                minHeight: "100vh"
+              }}
+            >
+              <div className="HeaderContainer">
+                <button className='account-btns' onClick={toggleModal}>
+                  <CircleUserRound size={28} />
+                </button>
       
-      {isModalOpen && (
-        <div className="user-dropdown">
-          <div className="dropdown-arrow"></div>
-          <div className="user-info">
-            <CircleUserRound size={36} />
-            <div className="user-details">
-              <p className="user-name">{`${userData.firstName} ${userData.lastName}`}</p>
-              <p className="user-role">{userData.role}</p>
-            </div>
-          </div>
-          <div className="contact-section">
-            <p className="contact-heading">Contact Information</p>
-            <div className="contact-item">
-              <Mail size={14} />
-              <span>{userData.email}</span>
-            </div>
-          </div>
-        </div>
-      )}
-                <header className="header">
-                    <button 
-                        onClick={toggleMenu} 
-                        className="menu-toggle"
-                        aria-label="Toggle menu"
-                    >
-                        {isMenuOpen ? <ArrowLeftToLine size={24} /> : <Menu size={24} />}
-                    </button>
-                </header>
-            </div>
-
-            <div className="main-content-wrapper">
-                <div 
-                    ref={navRef}
-                    className={`side-navigation ${isMenuOpen ? 'open' : ''}`}
-                >
-                    <div className="menu-content">
-                        <h1 className="title">Menu</h1>
-        
-                        <div className="nav-buttons">
-                            <button 
-                                onClick={() => handleNavClick('dashboard')}
-                                className="nav-button"
-                            >
-                                <LayoutDashboard size={20} style={{ verticalAlign: "middle", marginRight: "10px" }} />Dashboard
-                            </button>
-        
-                            {hasPermission('view_residents') && (
-                                <button 
-                                    onClick={() => handleNavClick('table')}
-                                    className="nav-button"
-                                >
-                                  <LibraryBig size={20} style={{ verticalAlign: "middle", marginRight: "10px" }}  />  Resident Records 
-                                </button>
-                            )}
-
-                            {hasPermission('view_user') && (
-                                <button 
-                                    onClick={() => handleNavClick('UserTable')}
-                                    className="nav-button"
-                                >
-                                  <Users size={20} style={{ verticalAlign: "middle", marginRight: "10px" }} />  User Management
-                                </button>
-                            )}
-
-                                {hasPermission('household') && (
-                                <button 
-                                    onClick={() => handleNavClick('household')}
-                                    className="nav-button"
-                                >
-                                  <House size={20} style={{ verticalAlign: "middle", marginRight: "10px" }}/>  Household
-                                </button>
-                            )}
-                            
-                            {hasPermission('view_visualization') && (
-                                <button 
-                                    onClick={() => handleNavClick('visualization')}
-                                    className="nav-button"
-                                >
-                                  <ChartColumnBig size={20} style={{ verticalAlign: "middle", marginRight: "10px" }} />  Reports & Analytics
-                                </button>
-                            )}
-                            
-                            <button onClick={handleLogout} className="logout-btn">
-                                <LogOut size={15} /> Logout
-                            </button>
-                        </div>
+                {isModalOpen && (
+                  <div className="user-dropdown">
+                    <div className="dropdown-arrow"></div>
+                    <div className="user-info">
+                      <CircleUserRound size={36} />
+                      <div className="user-details">
+                        <p className="user-name">{`${userData.firstName} ${userData.lastName}`}</p>
+                        <p className="user-role">{userData.role}</p>
+                      </div>
                     </div>
+                    <div className="contact-section">
+                      <p className="contact-heading">Contact Information</p>
+                      <div className="contact-item">
+                        <Mail size={14} />
+                        <span>{userData.email}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <header className="header">
+                  <button 
+                    onClick={toggleMenu} 
+                    className="menu-toggle"
+                    aria-label="Toggle menu"
+                  >
+                    {isMenuOpen ? <ArrowLeftToLine size={24} /> : <Menu size={24} />}
+                  </button>
+                </header>
+              </div>
+
+              <div className="main-content-wrapper">
+                <div 
+                  ref={navRef}
+                  className={`side-navigation ${isMenuOpen ? 'open' : ''}`}
+                >
+                  <div className="menu-content">
+                    <h1 className="title">Menu</h1>
+        
+                    <div className="nav-buttons">
+                      <button 
+                        onClick={() => handleNavClick('dashboard')}
+                        className="nav-button"
+                      >
+                        <LayoutDashboard size={20} style={{ verticalAlign: "middle", marginRight: "10px" }} />Dashboard
+                      </button>
+        
+                      {hasPermission('view_residents') && (
+                        <button 
+                          onClick={() => handleNavClick('table')}
+                          className="nav-button"
+                        >
+                          <LibraryBig size={20} style={{ verticalAlign: "middle", marginRight: "10px" }}  />  Resident Records 
+                        </button>
+                      )}
+
+                      {hasPermission('view_user') && (
+                        <button 
+                          onClick={() => handleNavClick('UserTable')}
+                          className="nav-button"
+                        >
+                          <Users size={20} style={{ verticalAlign: "middle", marginRight: "10px" }} />  User Management
+                        </button>
+                      )}
+
+                      {hasPermission('household') && (
+                        <button 
+                          onClick={() => handleNavClick('household')}
+                          className="nav-button"
+                        >
+                          <House size={20} style={{ verticalAlign: "middle", marginRight: "10px" }}/>  Household
+                        </button>
+                      )}
+                            
+                      {hasPermission('view_visualization') && (
+                        <button 
+                          onClick={() => handleNavClick('visualization')}
+                          className="nav-button"
+                        >
+                          <ChartColumnBig size={20} style={{ verticalAlign: "middle", marginRight: "10px" }} />  Reports & Analytics
+                        </button>
+                      )}
+
+                      <button 
+                        onClick={() => handleNavClick('generate_qr')}
+                        className="nav-button"
+                      >
+                        <Scan size={20} style={{ verticalAlign: "middle", marginRight: "10px" }} /> Generate into QR
+                      </button>
+                            
+                      <button onClick={handleLogout} className="logout-btn">
+                        <LogOut size={15} /> Logout
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="content-section">
-                    {renderContent()}
-                </div>
-            </div>
-        </div>  
-
-        
-    
-     
-    
- 
-
-      {showLogoutModal && (
-        <div className="modal-overlay-logout">
-          <div className="modal-card-logout">
-            <h3>Are you sure you want to logout?</h3>
-            <div className="modal-actions-out">
-              <button onClick={cancelLogout} className="cancel-btn">
-                Cancel
-              </button>
-              <button onClick={confirmLogout} className="confirm-btn">
-                Confirm Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-        {/* Form Modal */}
-        {isFormModalOpen && (
-          <div className="modal-overlay">
-            <div className="modal-content">
-              <h2>{isEditing ? "Update resident Information" : "Add resident Information"}</h2>
-
-
-              {/* Input Method Selector */}
-              {!isEditing && (
-                <div className="input-method-selector">
-                  <label>
-                     Method:
-                    <select
-                      value={inputMethod}
-                      onChange={(e) => setInputMethod(e.target.value)}
-                    >
-                      <option value="manual">Manual Entry</option>
-                      <option value="csv">Upload CSV</option>
-                    </select>
-                  </label>
-                </div>
-              )}
-
-
-              {/* Form Content */}
-              {inputMethod === 'manual' ? (
-               <form onSubmit={isEditing ? handleEditSubmit : handleAddSubmit}>
-               {/* Identification Section */}
-               <div className="form-section">
-                 <div className="section-title">
-                   <i className="fa fa-id-card"></i> Identification
-                 </div>
-                 <div className="form-grid">
-                   <div className="full-width">
-                     <label className="required-field">
-                       ID:
-                       <input
-                         type="text"
-                         name="id"
-                         placeholder="Resident ID"
-                         value={formData.id}
-                         onChange={handleChange}
-                         required
-                         disabled={isEditing}
-                       />
-                     </label>
-                   </div>
-                 </div>
-               </div>
-               
-               {/* Personal Information Section */}
-               <div className="form-section">
-                 <div className="section-title">
-                   <i className="fa fa-user"></i> Personal Information
-                 </div>
-                 <div className="form-grid">
-                   <div>
-                     <label className="required-field">
-                       First Name:
-                       <input
-                         type="text"
-                         name="firstname"
-                         placeholder="First Name"
-                         value={formData.firstname}
-                         onChange={handleChange}
-                         required
-                       />
-                     </label>
-                   </div>
-                   
-                   <div>
-                     <label className="required-field">
-                       Last Name:
-                       <input
-                         type="text"
-                         name="lastname"
-                         placeholder="Last Name"
-                         value={formData.lastname}
-                         onChange={handleChange}
-                         required
-                       />
-                     </label>
-                   </div>
-                   
-                   <div>
-                     <label className="required-field">
-                       Birthday:
-                       <input
-                         type="date"
-                         name="birthday"
-                         value={formData.birthday}
-                         onChange={handleChange}
-                         required
-                       />
-                     </label>
-                   </div>
-                   
-                   <div>
-                     <label className="required-field">
-                       Age:
-                       <input
-                         type="number"
-                         name="age"
-                         placeholder="Age"
-                         value={formData.age}
-                         onChange={handleChange}
-                         required
-                       />
-                     </label>
-                   </div>
-                   
-                   <div>
-                     <label className="required-field">
-                       Gender:
-                       <select name="gender" value={formData.gender} onChange={handleChange} required>
-                         <option value="" disabled>Select Gender</option>
-                         <option value="Female">Female</option>
-                         <option value="Male">Male</option>
-                       </select>
-                     </label>
-                   </div>
-                   
-                   <div>
-                     <label className="required-field">
-                       Civil Status:
-                       <select name="civilStatus" value={formData.civilStatus} onChange={handleChange} required>
-                         <option value="" disabled>Select Civil Status</option>
-                         <option value="Single">Single</option>
-                         <option value="Married">Married</option>
-                         <option value="Widowed">Widowed</option>
-                         <option value="Divorced">Divorced</option>
-                       </select>
-                     </label>
-                   </div>
-                   
-                   <div>
-                     <label className="required-field">
-                       Religion:
-                       <input
-                         type="text"
-                         name="religion"
-                         placeholder="Religion"
-                         value={formData.religion}
-                         onChange={handleChange}
-                         required
-                       />
-                     </label>
-                   </div>
-                 </div>
-               </div>
-               
-               {/* Contact Information Section */}
-               <div className="form-section">
-                 <div className="section-title">
-                   <i className="fa fa-address-book"></i> Contact Information
-                 </div>
-                 <div className="form-grid">
-                   <div className="medium-width">
-                     <label className="required-field">
-                       Email:
-                       <input
-                         type="email"
-                         name="email"
-                         placeholder="Email Address"
-                         value={formData.email}
-                         onChange={handleChange}
-                         required
-                       />
-                     </label>
-                   </div>
-                   
-                   <div>
-                     <label className="required-field">
-                       Phone Number:
-                       <input
-                         type="number"
-                         name="pnumber"
-                         placeholder="Phone Number"
-                         value={formData.pnumber}
-                         onChange={handleChange}
-                         required
-                       />
-                     </label>
-                   </div>
-                 </div>
-               </div>
-               
-               {/* Residence Information Section */}
-               <div className="form-section">
-                 <div className="section-title">
-                   <i className="fa fa-home"></i> Residence Information
-                 </div>
-                 <div className="form-grid">
-                   <div className="full-width">
-                     <label className="required-field">
-                       Complete Address:
-                       <input
-                         type="text"
-                         name="address"
-                         placeholder="Complete Address"
-                         value={formData.address}
-                         onChange={handleChange}
-                         required
-                       />
-                     </label>
-                   </div>
-                   
-                   <div>
-                     <label className="required-field">
-                       House Number:
-                       <input
-                         type="number"
-                         name="houseNumber"
-                         placeholder="House Number"
-                         value={formData.houseNumber}
-                         onChange={handleChange}
-                         required
-                       />
-                     </label>
-                   </div>
-                   
-                   <div>
-                     <label className="required-field">
-                       Purok:
-                       <input
-                         type="text"
-                         name="purok"
-                         placeholder="Purok"
-                         value={formData.purok}
-                         onChange={handleChange}
-                         required
-                       />
-                     </label>
-                   </div>
-                   
-                   <div>
-                     <label className="required-field">
-                       Years of Residency:
-                       <input
-                         type="number"
-                         name="yearsOfResidency"
-                         placeholder="Years of Residency"
-                         value={formData.yearsOfResidency}
-                         onChange={handleChange}
-                         required
-                       />
-                     </label>
-                   </div>
-                 </div>
-               </div>
-               
-               {/* Socioeconomic Information Section */}
-               <div className="form-section">
-                 <div className="section-title">
-                   <i className="fa fa-briefcase"></i> Socioeconomic Information
-                 </div>
-                 <div className="form-grid">
-                   <div>
-                     <label className="required-field">
-                       Employment Status:
-                       <select name="employmentStatus" value={formData.employmentStatus} onChange={handleChange} required>
-                         <option value="" disabled>Select Employment Status</option>
-                         <option value="Employed">Employed</option>
-                         <option value="Unemployed">Unemployed</option>
-                         <option value="Self-Employed">Self-Employed</option>
-                         <option value="Retired">Retired</option>
-                         <option value="Student">Student</option>
-                       </select>
-                     </label>
-                   </div>
-                   
-                   <div>
-                     <label className="required-field">
-                       Occupation / Job Title:
-                       <input
-                         type="text"
-                         name="occupation"
-                         placeholder="Occupation / Job Title"
-                         value={formData.occupation}
-                         onChange={handleChange}
-                         required
-                       />
-                     </label>
-                   </div>
-                   
-                   <div>
-                     <label className="required-field">
-                       Monthly Income Range:
-                       <input
-                         type="text"
-                         name="monthlyIncomeRange"
-                         placeholder="Monthly Income Range"
-                         value={formData.monthlyIncomeRange}
-                         onChange={handleChange}
-                         required
-                       />
-                     </label>
-                   </div>
-                   
-                   <div>
-                     <label className="required-field">
-                       Education Level:
-                       <select name="educationLevel" value={formData.educationLevel} onChange={handleChange} required>
-                         <option value="" disabled>Select Education Level</option>
-                         <option value="No Formal Education">No Formal Education</option>
-                         <option value="Elementary">Elementary</option>
-                         <option value="High School">High School</option>
-                         <option value="College">College</option>
-                         <option value="Vocational">Vocational</option>
-                       </select>
-                     </label>
-                   </div>
-                 </div>
-               </div>
-               
-               {/* Form Actions */}
-               <div className="form-actions">
-                 <button type="button" onClick={() => setIsFormModalOpen(false)}>Cancel</button>
-                 <button type="submit">{isEditing ? "Update Resident" : "Add Resident"}</button>
-               </div>
-             </form>
-              
-              ) : (
-                /* Upload CSV */
-                <div className="csv-upload">
-                  <input type="file" accept=".csv" onChange={handleCSVUpload} />
-                  <button
-                    className="close-btn"
-                    type="button"
-                    onClick={() => setIsFormModalOpen(false)}
-                  >
-                    Close
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-              {showViewMoreModal && (
-  <div className="modal-overlay-view">
-    <div className="modal-content view-modal">
-      <h2 className="form-title">Resident Information</h2>
-      
-      <div className="info-container">
-        {/* Personal Information Section */}
-        <div className="info-section">
-          <div className="section-title">
-            <i className="fa fa-user"></i> Personal Information
-          </div>
-          <div className="info-grid">
-            <div className="info-item">
-              <span className="info-label">ID:</span>
-              <span className="info-value">{formData.id}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">First Name:</span>
-              <span className="info-value">{formData.firstname}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Last Name:</span>
-              <span className="info-value">{formData.lastname}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Birthday:</span>
-              <span className="info-value">{formData.birthday}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Age:</span>
-              <span className="info-value">{formData.age}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Gender:</span>
-              <span className="info-value">{formData.gender}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Civil Status:</span>
-              <span className="info-value">{formData.civilStatus}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Religion:</span>
-              <span className="info-value">{formData.religion}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Contact Information Section */}
-        <div className="info-section">
-          <div className="section-title">
-            <i className="fa fa-address-book"></i> Contact Information
-          </div>
-          <div className="info-grid">
-            <div className="info-item">
-              <span className="info-label">Email:</span>
-              <span className="info-value">{formData.email}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Phone Number:</span>
-              <span className="info-value">{formData.pnumber}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Residence Information Section */}
-        <div className="info-section">
-          <div className="section-title">
-            <i className="fa fa-home"></i> Residence Information
-          </div>
-          <div className="info-grid">
-            <div className="info-item full-width">
-              <span className="info-label">Complete Address:</span>
-              <span className="info-value">{formData.address}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">House Number:</span>
-              <span className="info-value">{formData.houseNumber}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Purok:</span>
-              <span className="info-value">{formData.purok}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Years of Residency:</span>
-              <span className="info-value">{formData.yearsOfResidency}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Socioeconomic Information Section */}
-        <div className="info-section">
-          <div className="section-title">
-            <i className="fa fa-briefcase"></i> Socioeconomic Information
-          </div>
-          <div className="info-grid">
-            <div className="info-item">
-              <span className="info-label">Employment Status:</span>
-              <span className="info-value">{formData.employmentStatus}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Occupation:</span>
-              <span className="info-value">{formData.occupation}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Monthly Income Range:</span>
-              <span className="info-value">{formData.monthlyIncomeRange}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Education Level:</span>
-              <span className="info-value">{formData.educationLevel}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Health Information Toggle Button */}
-        <div className="toggle-section">
-          <button 
-            className="toggle-button"
-            onClick={() => setShowMedicalRecord(!showMedicalRecord)}
-          >
-            <i className={`fa fa-${showMedicalRecord ? 'minus' : 'plus'}-circle`}></i>
-            {showMedicalRecord ? "Hide Health Information" : "View Health Information"}
-          </button>
-        </div>
-
-        {/* Health Information Section (conditionally rendered) */}
-        {showMedicalRecord && (
-          <div className="info-section health-section">
-            <div className="section-title">
-              <i className="fa fa-heartbeat"></i> Health & Special Considerations
-            </div>
-            <div className="health-form">
-              <div className="form-grid">
-                <div className="medium-width">
-                  <label>
-                    Health Conditions / Disabilities:
-                    <input 
-                      type="text" 
-                      name="healthConditions" 
-                      value={medicalRecord.healthConditions || ""} 
-                      onChange={handleInputChange} 
-                      placeholder="E.g., Diabetes, Hypertension, PWD" 
-                    />
-                  </label>
-                </div>
-                <div>
-                  <label>
-                    Blood Type:
-                    <select 
-                      name="bloodType" 
-                      value={medicalRecord.bloodType || ""} 
-                      onChange={handleInputChange}
-                    >
-                      <option value="" disabled>Select Blood Type</option>
-                      <option value="A+">A+</option>
-                      <option value="A-">A-</option>
-                      <option value="B+">B+</option>
-                      <option value="B-">B-</option>
-                      <option value="AB+">AB+</option>
-                      <option value="AB-">AB-</option>
-                      <option value="O+">O+</option>
-                      <option value="O-">O-</option>
-                      <option value="Unknown">Unknown</option>
-                    </select>
-                  </label>
-                </div>
-                <div className="medium-width">
-                  <label>
-                    Vaccination Status:
-                    <input 
-                      type="text" 
-                      name="vaccinationStatus" 
-                      value={medicalRecord.vaccinationStatus || ""} 
-                      onChange={handleInputChange} 
-                      placeholder="E.g., COVID-19 (3 doses), Flu (2023)" 
-                    />
-                  </label>
-                </div>
-                <div>
-                  <label>
-                    PhilHealth / Insurance:
-                    <select 
-                      name="insuranceStatus" 
-                      value={medicalRecord.insuranceStatus || ""} 
-                      onChange={handleInputChange}
-                    >
-                      <option value="" disabled>Select Insurance Status</option>
-                      <option value="Yes - PhilHealth">Yes - PhilHealth</option>
-                      <option value="Yes - Private">Yes - Private</option>
-                      <option value="Yes - Both">Yes - Both</option>
-                      <option value="No">No</option>
-                    </select>
-                  </label>
-                </div>
-                <div className="full-width">
-                  <label>
-                    Additional Health Notes:
-                    <textarea 
-                      name="notes" 
-                      value={medicalRecord.notes || ""} 
-                      onChange={handleInputChange} 
-                      placeholder="Any additional health-related information"
-                      rows="3"
-                    ></textarea>
-                  </label>
+                  {renderContent()}
                 </div>
               </div>
-              <div className="health-actions">
-                <button 
-                  className="save-button" 
-                  onClick={saveAndUpdateMedicalRecord}
-                >
-                  <i className="fa fa-save"></i> Save Health Information
-                </button>
+            </div>  
+
+            {showLogoutModal && (
+              <div className="modal-overlay-logout">
+                <div className="modal-card-logout">
+                  <h3>Are you sure you want to logout?</h3>
+                  <div className="modal-actions-out">
+                    <button onClick={cancelLogout} className="cancel-btn">
+                      Cancel
+                    </button>
+                    <button onClick={confirmLogout} className="confirm-btn">
+                      Confirm Logout
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
-      </div>
-      
-      {/* Modal Actions */}
-      <div className="modal-actions">
-        <button 
-          className="close-button" 
-          onClick={() => setShowViewMoreModal(false)}
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-        <ToastContainer />
-      
-   
-  </>
+            )}
+
+            {isFormModalOpen && (
+              <div className="modal-overlay">
+                <div className="modal-content">
+                  <h2>{isEditing ? "Update resident Information" : "Add resident Information"}</h2>
+                  {/* Input Method Selector */}
+                  {!isEditing && (
+                    <div className="input-method-selector">
+                      <label>
+                        Method:
+                        <select
+                          value={inputMethod}
+                          onChange={(e) => setInputMethod(e.target.value)}
+                        >
+                          <option value="manual">Manual Entry</option>
+                          <option value="csv">Upload CSV</option>
+                        </select>
+                      </label>
+                    </div>
+                  )}
+                  {/* Form Content */}
+                  {inputMethod === 'manual' ? (
+                    <form onSubmit={isEditing ? handleEditSubmit : handleAddSubmit}>
+                      {/* Identification Section */}
+                      <div className="form-section">
+                        <div className="section-title">
+                          <i className="fa fa-id-card"></i> Identification
+                        </div>
+                        <div className="form-grid">
+                          <div className="full-width">
+                            <label className="required-field">
+                              ID:
+                              <input
+                                type="text"
+                                name="id"
+                                placeholder="Resident ID"
+                                value={formData.id}
+                                onChange={handleChange}
+                                required
+                                disabled={isEditing}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Personal Information Section */}
+                      <div className="form-section">
+                        <div className="section-title">
+                          <i className="fa fa-user"></i> Personal Information
+                        </div>
+                        <div className="form-grid">
+                          <div>
+                            <label className="required-field">
+                              First Name:
+                              <input
+                                type="text"
+                                name="firstname"
+                                placeholder="First Name"
+                                value={formData.firstname}
+                                onChange={handleChange}
+                                required
+                              />
+                            </label>
+                          </div>
+                          <div>
+                            <label className="required-field">
+                              Last Name:
+                              <input
+                                type="text"
+                                name="lastname"
+                                placeholder="Last Name"
+                                value={formData.lastname}
+                                onChange={handleChange}
+                                required
+                              />
+                            </label>
+                          </div>
+                          <div>
+                            <label className="required-field">
+                              Birthday:
+                              <input
+                                type="date"
+                                name="birthday"
+                                value={formData.birthday}
+                                onChange={handleChange}
+                                required
+                              />
+                            </label>
+                          </div>
+                          <div>
+                            <label className="required-field">
+                              Age:
+                              <input
+                                type="number"
+                                name="age"
+                                placeholder="Age"
+                                value={formData.age}
+                                onChange={handleChange}
+                                required
+                              />
+                            </label>
+                          </div>
+                          <div>
+                            <label className="required-field">
+                              Gender:
+                              <select name="gender" value={formData.gender} onChange={handleChange} required>
+                                <option value="" disabled>Select Gender</option>
+                                <option value="Female">Female</option>
+                                <option value="Male">Male</option>
+                              </select>
+                            </label>
+                          </div>
+                          <div>
+                            <label className="required-field">
+                              Civil Status:
+                              <select name="civilStatus" value={formData.civilStatus} onChange={handleChange} required>
+                                <option value="" disabled>Select Civil Status</option>
+                                <option value="Single">Single</option>
+                                <option value="Married">Married</option>
+                                <option value="Widowed">Widowed</option>
+                                <option value="Divorced">Divorced</option>
+                              </select>
+                            </label>
+                          </div>
+                          <div>
+                            <label className="required-field">
+                              Religion:
+                              <input
+                                type="text"
+                                name="religion"
+                                placeholder="Religion"
+                                value={formData.religion}
+                                onChange={handleChange}
+                                required
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Contact Information Section */}
+                      <div className="form-section">
+                        <div className="section-title">
+                          <i className="fa fa-address-book"></i> Contact Information
+                        </div>
+                        <div className="form-grid">
+                          <div className="medium-width">
+                            <label className="required-field">
+                              Email:
+                              <input
+                                type="email"
+                                name="email"
+                                placeholder="Email Address"
+                                value={formData.email}
+                                onChange={handleChange}
+                                required
+                              />
+                            </label>
+                          </div>
+                          <div>
+                            <label className="required-field">
+                              Phone Number:
+                              <input
+                                type="number"
+                                name="phoneNumber"
+                                placeholder="Phone Number"
+                                value={formData.phoneNumber}
+                                onChange={handleChange}
+                                required
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Residence Information Section */}
+                      <div className="form-section">
+                        <div className="section-title">
+                          <i className="fa fa-home"></i> Residence Information
+                        </div>
+                        <div className="form-grid">
+                          <div className="full-width">
+                            <label className="required-field">
+                              Complete Address:
+                              <input
+                                type="text"
+                                name="address"
+                                placeholder="Complete Address"
+                                value={formData.address}
+                                onChange={handleChange}
+                                required
+                              />
+                            </label>
+                          </div>
+                          <div>
+                            <label className="required-field">
+                              House Number:
+                              <input
+                                type="number"
+                                name="houseNumber"
+                                placeholder="House Number"
+                                value={formData.houseNumber}
+                                onChange={handleChange}
+                                required
+                              />
+                            </label>
+                          </div>
+                          <div>
+                            <label className="required-field">
+                              Purok:
+                              <input
+                                type="text"
+                                name="purok"
+                                placeholder="Purok"
+                                value={formData.purok}
+                                onChange={handleChange}
+                                required
+                              />
+                            </label>
+                          </div>
+                          <div>
+                            <label className="required-field">
+                              Years of Residency:
+                              <input
+                                type="number"
+                                name="yearsOfResidency"
+                                placeholder="Years of Residency"
+                                value={formData.yearsOfResidency}
+                                onChange={handleChange}
+                                required
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Socioeconomic Information Section */}
+                      <div className="form-section">
+                        <div className="section-title">
+                          <i className="fa fa-briefcase"></i> Socioeconomic Information
+                        </div>
+                        <div className="form-grid">
+                          <div>
+                            <label className="required-field">
+                              Employment Status:
+                              <select name="employmentStatus" value={formData.employmentStatus} onChange={handleChange} required>
+                                <option value="" disabled>Select Employment Status</option>
+                                <option value="Employed">Employed</option>
+                                <option value="Unemployed">Unemployed</option>
+                                <option value="Self-Employed">Self-Employed</option>
+                                <option value="Retired">Retired</option>
+                                <option value="Student">Student</option>
+                              </select>
+                            </label>
+                          </div>
+                          <div>
+                            <label className="required-field">
+                              Occupation / Job Title:
+                              <input
+                                type="text"
+                                name="occupation"
+                                placeholder="Occupation / Job Title"
+                                value={formData.occupation}
+                                onChange={handleChange}
+                                required
+                              />
+                            </label>
+                          </div>
+                          <div>
+                            <label className="required-field">
+                              Monthly Income Range:
+                              <input
+                                type="text"
+                                name="monthlyIncomeRange"
+                                placeholder="Monthly Income Range"
+                                value={formData.monthlyIncomeRange}
+                                onChange={handleChange}
+                                required
+                              />
+                            </label>
+                          </div>
+                          <div>
+                            <label className="required-field">
+                              Education Level:
+                              <select name="educationLevel" value={formData.educationLevel} onChange={handleChange} required>
+                                <option value="" disabled>Select Education Level</option>
+                                <option value="No Formal Education">No Formal Education</option>
+                                <option value="Elementary">Elementary</option>
+                                <option value="High School">High School</option>
+                                <option value="College">College</option>
+                                <option value="Vocational">Vocational</option>
+                              </select>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Form Actions */}
+                      <div className="form-actions">
+                        <button type="button" onClick={() => setIsFormModalOpen(false)}>Cancel</button>
+                        <button type="submit">{isEditing ? "Update Resident" : "Add Resident"}</button>
+                      </div>
+                    </form>
+                  ) : (
+                    /* Upload CSV */
+                    <div className="csv-upload">
+                      <input type="file" accept=".csv" onChange={handleCSVUpload} />
+                      <button
+                        className="close-btn"
+                        type="button"
+                        onClick={() => setIsFormModalOpen(false)}
+                      >
+                        Close
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {showViewMoreModal && (
+              <div className="modal-overlay-view">
+                <div className="modal-content view-modal">
+                  <h2 className="form-title">Resident Information</h2>
+                  <div className="info-container">
+                    {/* Personal Information Section */}
+                    <div className="info-section">
+                      <div className="section-title">
+                        <i className="fa fa-user"></i> Personal Information
+                      </div>
+                      <div className="info-grid">
+                        <div className="info-item">
+                          <span className="info-label">ID:</span>
+                          <span className="info-value">{formData.id}</span>
+                        </div>
+                        <div className="info-item">
+                          <span className="info-label">First Name:</span>
+                          <span className="info-value">{formData.firstname}</span>
+                        </div>
+                        <div className="info-item">
+                          <span className="info-label">Last Name:</span>
+                          <span className="info-value">{formData.lastname}</span>
+                        </div>
+                        <div className="info-item">
+                          <span className="info-label">Birthday:</span>
+                          <span className="info-value">{formData.birthday}</span>
+                        </div>
+                        <div className="info-item">
+                          <span className="info-label">Age:</span>
+                          <span className="info-value">{formData.age}</span>
+                        </div>
+                        <div className="info-item">
+                          <span className="info-label">Gender:</span>
+                          <span className="info-value">{formData.gender}</span>
+                        </div>
+                        <div className="info-item">
+                          <span className="info-label">Civil Status:</span>
+                          <span className="info-value">{formData.civilStatus}</span>
+                        </div>
+                        <div className="info-item">
+                          <span className="info-label">Religion:</span>
+                          <span className="info-value">{formData.religion}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Contact Information Section */}
+                    <div className="info-section">
+                      <div className="section-title">
+                        <i className="fa fa-address-book"></i> Contact Information
+                      </div>
+                      <div className="info-grid">
+                        <div className="info-item">
+                          <span className="info-label">Email:</span>
+                          <span className="info-value">{formData.email}</span>
+                        </div>
+                        <div className="info-item">
+                          <span className="info-label">Phone Number:</span>
+                          <span className="info-value">{formData.phoneNumber}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Residence Information Section */}
+                    <div className="info-section">
+                      <div className="section-title">
+                        <i className="fa fa-home"></i> Residence Information
+                      </div>
+                      <div className="info-grid">
+                        <div className="info-item full-width">
+                          <span className="info-label">Complete Address:</span>
+                          <span className="info-value">{formData.address}</span>
+                        </div>
+                        <div className="info-item">
+                          <span className="info-label">House Number:</span>
+                          <span className="info-value">{formData.houseNumber}</span>
+                        </div>
+                        <div className="info-item">
+                          <span className="info-label">Purok:</span>
+                          <span className="info-value">{formData.purok}</span>
+                        </div>
+                        <div className="info-item">
+                          <span className="info-label">Years of Residency:</span>
+                          <span className="info-value">{formData.yearsOfResidency}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Socioeconomic Information Section */}
+                    <div className="info-section">
+                      <div className="section-title">
+                        <i className="fa fa-briefcase"></i> Socioeconomic Information
+                      </div>
+                      <div className="info-grid">
+                        <div className="info-item">
+                          <span className="info-label">Employment Status:</span>
+                          <span className="info-value">{formData.employmentStatus}</span>
+                        </div>
+                        <div className="info-item">
+                          <span className="info-label">Occupation:</span>
+                          <span className="info-value">{formData.occupation}</span>
+                        </div>
+                        <div className="info-item">
+                          <span className="info-label">Monthly Income Range:</span>
+                          <span className="info-value">{formData.monthlyIncomeRange}</span>
+                        </div>
+                        <div className="info-item">
+                          <span className="info-label">Education Level:</span>
+                          <span className="info-value">{formData.educationLevel}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Health Information Toggle Button */}
+                    <div className="toggle-section">
+                      <button 
+                        className="toggle-button"
+                        onClick={() => setShowMedicalRecord(!showMedicalRecord)}
+                      >
+                        <i className={`fa fa-${showMedicalRecord ? 'minus' : 'plus'}-circle`}></i>
+                        {showMedicalRecord ? "Hide Health Information" : "View Health Information"}
+                      </button>
+                    </div>
+                    {/* Health Information Section (conditionally rendered) */}
+                    {showMedicalRecord && (
+                      <div className="info-section health-section">
+                        <div className="section-title">
+                          <i className="fa fa-heartbeat"></i> Health & Special Considerations
+                        </div>
+                        <div className="health-form">
+                          <div className="form-grid">
+                            <div className="medium-width">
+                              <label>
+                                Health Conditions / Disabilities:
+                                <input 
+                                  type="text" 
+                                  name="healthConditions" 
+                                  value={medicalRecord.healthConditions || ""} 
+                                  onChange={handleInputChange} 
+                                  placeholder="E.g., Diabetes, Hypertension, PWD" 
+                                />
+                              </label>
+                            </div>
+                            <div>
+                              <label>
+                                Blood Type:
+                                <select 
+                                  name="bloodType" 
+                                  value={medicalRecord.bloodType || ""} 
+                                  onChange={handleInputChange}
+                                >
+                                  <option value="" disabled>Select Blood Type</option>
+                                  <option value="A+">A+</option>
+                                  <option value="A-">A-</option>
+                                  <option value="B+">B+</option>
+                                  <option value="B-">B-</option>
+                                  <option value="AB+">AB+</option>
+                                  <option value="AB-">AB-</option>
+                                  <option value="O+">O+</option>
+                                  <option value="O-">O-</option>
+                                  <option value="Unknown">Unknown</option>
+                                </select>
+                              </label>
+                            </div>
+                            <div className="medium-width">
+                              <label>
+                                Vaccination Status:
+                                <input 
+                                  type="text" 
+                                  name="vaccinationStatus" 
+                                  value={medicalRecord.vaccinationStatus || ""} 
+                                  onChange={handleInputChange} 
+                                  placeholder="E.g., COVID-19 (3 doses), Flu (2023)" 
+                                />
+                              </label>
+                            </div>
+                            <div>
+                              <label>
+                                PhilHealth / Insurance:
+                                <select 
+                                  name="insuranceStatus" 
+                                  value={medicalRecord.insuranceStatus || ""} 
+                                  onChange={handleInputChange}
+                                >
+                                  <option value="" disabled>Select Insurance Status</option>
+                                  <option value="Yes - PhilHealth">Yes - PhilHealth</option>
+                                  <option value="Yes - Private">Yes - Private</option>
+                                  <option value="Yes - Both">Yes - Both</option>
+                                  <option value="No">No</option>
+                                </select>
+                              </label>
+                            </div>
+                            <div className="full-width">
+                              <label>
+                                Additional Health Notes:
+                                <textarea 
+                                  name="notes" 
+                                  value={medicalRecord.notes || ""} 
+                                  onChange={handleInputChange} 
+                                  placeholder="Any additional health-related information"
+                                  rows="3"
+                                ></textarea>
+                              </label>
+                            </div>
+                          </div>
+                          <div className="health-actions">
+                            <button 
+                              className="save-button" 
+                              onClick={saveAndUpdateMedicalRecord}
+                            >
+                              <i className="fa fa-save"></i> Save Health Information
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {/* Modal Actions */}
+                  <div className="modal-actions">
+                    <button 
+                      className="close-button" 
+                      onClick={() => setShowViewMoreModal(false)}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            <ToastContainer />
+          </>
+        }
+      />
+      <Route path="/export" element={<ExportData />} />
+    </Routes>
+  </Router>
 );
 }
 

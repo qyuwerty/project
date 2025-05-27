@@ -63,7 +63,7 @@ const CommunityEvents = ({ residents = [] }) => {
         volunteers: [...currentEvent.volunteers, {
           id: resident.id || `${resident.firstname}-${resident.lastname}-${resident.birthday}`,
           name: `${resident.firstname} ${resident.lastname}`,
-          contact: resident.pnumber || 'No contact provided',
+          contact: resident.phoneNumber || 'No contact provided',
           email: resident.email || 'No email provided'
         }]
       });
